@@ -69,6 +69,25 @@ npm run dev
 | 数据采样 | `data_sample` | 采样配置 | 配置标识、数据来源、采样方法 |
 | 报告调度 | `report_schedule` | 报告任务 | 任务标识、报告内容、接收人 |
 
+## 已发表结果筛选与复算受理
+
+多维查询与预聚合任务工作台内嵌 `frontend/src/views/PublishedQueryPanel.vue`，
+后端领域逻辑在 `backend/app/services/published_result.py`，路由挂在 `/api/domain` 下。
+
+- `GET /api/domain/published_result/meta`：可选指标版本、来源范围、分区日期和分区地区。
+- `GET /api/domain/published_result/facts`：按 `指标名称` + `实际指标版本`（或 `版本口径=历史/实际`）
+  + `分区日期` + `来源范围` 精确查询已发表事实；版本不做就近取最新，来源范围不做子串匹配。
+- `GET /api/domain/published_result/dimensions`：维度必须带完整指标口径，同名维度不会跨指标混入。
+- `POST /api/domain/published_result/filter`：生成一轮可接续筛选，返回接续令牌、事实快照和证据快照；
+  带 `接续令牌` 再次调用即回看同一轮快照，证据被更正后仍保留变更前结果。
+- `GET /api/domain/published_result/rounds/{轮次号}` 与 `/evidence`：按轮次读取结果和证据修订前后。
+- `POST /api/domain/published_result/rounds/{轮次号}/recompute`：按分区提交复算，
+  同一筛选同一合格分区只生成一次有效受理；暂缓、待核或证据更正的分区进入待核查并给出后续核对。
+- `POST /api/domain/aggregate_job/{任务号}/accept-recompute`：预聚合任务用接续令牌关联实际数据源、
+  领取地区数据，返回实际重算范围与待核查范围。
+- 证据更正只追加修订（`POST .../evidence/{证据标识}/correct`），补交核验
+  （`POST .../evidence/{证据标识}/submit`）不改写历史已发表度量。
+
 ## 约定
 
 - 全部模块共享`frontend/src/views/WorkbenchView.vue|tsx`和一套资源路由。
